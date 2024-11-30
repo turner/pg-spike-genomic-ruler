@@ -1,0 +1,25 @@
+/* Global styles */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #fafafa;
+}
+
+#ruler-container {
+  position: relative;
+  width: 100%;
+  height: 200px; // Adjust for ruler height
+  overflow: hidden;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#ruler-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+/* Add responsive utilities if needed */
