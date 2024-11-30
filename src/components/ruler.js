@@ -3,19 +3,6 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
 
     // Handle high-DPI rendering
     const dpr = window.devicePixelRatio || 1;
-    const cssWidth = canvas.clientWidth;
-    const cssHeight = canvas.clientHeight;
-
-    // Set canvas dimensions to account for DPR
-    canvas.width = cssWidth * dpr;
-    canvas.height = cssHeight * dpr;
-
-    // Scale the context to match DPR
-    ctx.scale(dpr, dpr);
-
-    // Canvas logical dimensions
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
 
     // Overall genomic range
     const totalBases = overallEnd - overallStart;
@@ -35,8 +22,24 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         { name: "mb", value: 1000000 },
     ];
 
+    // Resize and scale canvas
+    function resizeCanvas() {
+        const cssWidth = canvas.clientWidth;
+        const cssHeight = canvas.clientHeight;
+
+        // Adjust canvas dimensions for high-DPI
+        canvas.width = cssWidth * dpr;
+        canvas.height = cssHeight * dpr;
+
+        // Scale the context to handle high-DPI
+        ctx.scale(dpr, dpr);
+
+        // Redraw the ruler to fit the new size
+        draw();
+    }
+
     function calculatePixelsPerBase() {
-        return cssWidth / (visibleEnd - visibleStart);
+        return canvas.clientWidth / (visibleEnd - visibleStart);
     }
 
     // Determine the appropriate unit based on visible range
@@ -44,7 +47,7 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         const span = visibleEnd - visibleStart;
         if (span >= 1_000_000) return units[2]; // mb
         if (span >= 1_000) return units[1]; // kb
-        return units[0]; // bp
+        return units[0]; // bp;
     }
 
     // Draw the ruler
@@ -62,12 +65,12 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
 
         // Draw background
         ctx.fillStyle = "#f5f5f5";
-        ctx.fillRect(0, 0, cssWidth, cssHeight);
+        ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
         // Draw ticks and labels
         ctx.strokeStyle = "#333";
         ctx.fillStyle = "#333";
-        ctx.font = `${18 * dpr}px Helvetica`; // Scale font size for high-DPI
+        ctx.font = `${18 * dpr}px Arial`; // Scale font size for high-DPI
         ctx.textAlign = "center";
 
         const firstTick = Math.floor(visibleStart / minorTickSpacing) * minorTickSpacing;
@@ -78,7 +81,7 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
             const x = (base - visibleStart) * pixelsPerBase;
 
             // Skip ticks outside the canvas
-            if (x < 0 || x > cssWidth) continue;
+            if (x < 0 || x > canvas.clientWidth) continue;
 
             const isMajor = base % majorTickSpacing === 0;
 
@@ -106,7 +109,7 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         // Calculate the new visible range
         const currentSpan = visibleEnd - visibleStart;
         const newSpan = Math.max(100, Math.min(totalBases, currentSpan * zoomDelta)); // Minimum span: 100 bp
-        const zoomCenter = visibleStart + (e.offsetX / cssWidth) * currentSpan;
+        const zoomCenter = visibleStart + (e.offsetX / canvas.clientWidth) * currentSpan;
 
         visibleStart = Math.max(overallStart, zoomCenter - (zoomCenter - visibleStart) * zoomDelta);
         visibleEnd = Math.min(overallEnd, zoomCenter + (visibleEnd - zoomCenter) * zoomDelta);
@@ -157,8 +160,11 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         canvas.style.cursor = "grab";
     });
 
-    // Initial draw
-    draw();
+    // Listen for window resize and adjust the canvas
+    window.addEventListener("resize", resizeCanvas);
+
+    // Initial setup and draw
+    resizeCanvas();
 }
 
 export { initRuler }
