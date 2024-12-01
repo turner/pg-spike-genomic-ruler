@@ -1,15 +1,15 @@
-function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
+function initRuler(canvas, chrStartBP, chrEndBP, startBP, endBP) {
     const ctx = canvas.getContext("2d");
 
     // Handle high-DPI rendering
     const dpr = window.devicePixelRatio || 1;
 
-    // Overall genomic range
-    const totalBases = overallEnd - overallStart;
+    // Chromosome range
+    const totalBases = chrEndBP - chrStartBP;
 
     // Current visible range (sub-range)
-    let visibleStart = initialStart;
-    let visibleEnd = initialEnd;
+    let visibleStart = startBP;
+    let visibleEnd = endBP;
 
     // Zoom and panning state
     let isDragging = false;
@@ -22,7 +22,6 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         { name: "mb", value: 1000000 },
     ];
 
-    // Resize and scale canvas
     function resizeCanvas() {
         const cssWidth = canvas.clientWidth;
         const cssHeight = canvas.clientHeight;
@@ -42,7 +41,6 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         return canvas.clientWidth / (visibleEnd - visibleStart);
     }
 
-    // Determine the appropriate unit based on visible range
     function getUnit() {
         const span = visibleEnd - visibleStart;
         if (span >= 1_000_000) return units[2]; // mb
@@ -50,48 +48,39 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         return units[0]; // bp;
     }
 
-    // Draw the ruler
     function draw() {
-        // Clear the high-DPI canvas
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
         const pixelsPerBase = calculatePixelsPerBase();
         const currentUnit = getUnit();
         const unitScale = currentUnit.value;
 
-        // Tick spacing in basepairs
-        const majorTickSpacing = unitScale; // Major ticks at each unit (e.g., 1 kb)
-        const minorTickSpacing = majorTickSpacing / 10; // Minor ticks between major ticks
+        const majorTickSpacing = unitScale;
+        const minorTickSpacing = majorTickSpacing / 10;
 
-        // Draw background
         ctx.fillStyle = "#f5f5f5";
         ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-        // Draw ticks and labels
         ctx.strokeStyle = "#333";
         ctx.fillStyle = "#333";
-        ctx.font = `${18 * dpr}px Arial`; // Scale font size for high-DPI
+        ctx.font = `${12 * dpr}px Arial`;
         ctx.textAlign = "center";
 
         const firstTick = Math.floor(visibleStart / minorTickSpacing) * minorTickSpacing;
         const lastTick = Math.ceil(visibleEnd / minorTickSpacing) * minorTickSpacing;
 
         for (let base = firstTick; base <= lastTick; base += minorTickSpacing) {
-            // Calculate the x position in logical pixels
             const x = (base - visibleStart) * pixelsPerBase;
 
-            // Skip ticks outside the canvas
             if (x < 0 || x > canvas.clientWidth) continue;
 
             const isMajor = base % majorTickSpacing === 0;
 
-            // Draw tick
             ctx.beginPath();
             ctx.moveTo(x, 0);
             ctx.lineTo(x, isMajor ? 20 : 10);
             ctx.stroke();
 
-            // Draw labels for major ticks
             if (isMajor) {
                 const label = `${Math.floor(base / unitScale)} ${currentUnit.name}`;
                 ctx.fillText(label, x, 40);
@@ -99,25 +88,23 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         }
     }
 
-    // Handle zooming
     canvas.addEventListener("wheel", (e) => {
         e.preventDefault();
 
-        const zoomFactor = 0.1;
+        // const zoomFactor = 0.1;
+        const zoomFactor = 0.008;
         const zoomDelta = e.deltaY > 0 ? 1 + zoomFactor : 1 - zoomFactor;
 
-        // Calculate the new visible range
         const currentSpan = visibleEnd - visibleStart;
-        const newSpan = Math.max(100, Math.min(totalBases, currentSpan * zoomDelta)); // Minimum span: 100 bp
+        const newSpan = Math.max(100, Math.min(totalBases, currentSpan * zoomDelta));
         const zoomCenter = visibleStart + (e.offsetX / canvas.clientWidth) * currentSpan;
 
-        visibleStart = Math.max(overallStart, zoomCenter - (zoomCenter - visibleStart) * zoomDelta);
-        visibleEnd = Math.min(overallEnd, zoomCenter + (visibleEnd - zoomCenter) * zoomDelta);
+        visibleStart = Math.max(chrStartBP, zoomCenter - (zoomCenter - visibleStart) * zoomDelta);
+        visibleEnd = Math.min(chrEndBP, zoomCenter + (visibleEnd - zoomCenter) * zoomDelta);
 
         draw();
     });
 
-    // Handle panning
     canvas.addEventListener("mousedown", (e) => {
         isDragging = true;
         startX = e.offsetX;
@@ -132,18 +119,17 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
             const pixelsPerBase = calculatePixelsPerBase();
             const baseDelta = deltaX / pixelsPerBase;
 
-            visibleStart = Math.max(overallStart, visibleStart - baseDelta);
-            visibleEnd = Math.min(overallEnd, visibleEnd - baseDelta);
+            visibleStart = Math.max(chrStartBP, visibleStart - baseDelta);
+            visibleEnd = Math.min(chrEndBP, visibleEnd - baseDelta);
 
-            // Clamp panning to overall range
             const span = visibleEnd - visibleStart;
-            if (visibleStart < overallStart) {
-                visibleStart = overallStart;
-                visibleEnd = overallStart + span;
+            if (visibleStart < chrStartBP) {
+                visibleStart = chrStartBP;
+                visibleEnd = chrStartBP + span;
             }
-            if (visibleEnd > overallEnd) {
-                visibleEnd = overallEnd;
-                visibleStart = overallEnd - span;
+            if (visibleEnd > chrEndBP) {
+                visibleEnd = chrEndBP;
+                visibleStart = chrEndBP - span;
             }
 
             draw();
@@ -160,10 +146,8 @@ function initRuler(canvas, overallStart, overallEnd, initialStart, initialEnd) {
         canvas.style.cursor = "grab";
     });
 
-    // Listen for window resize and adjust the canvas
     window.addEventListener("resize", resizeCanvas);
 
-    // Initial setup and draw
     resizeCanvas();
 }
 
