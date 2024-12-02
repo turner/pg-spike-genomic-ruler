@@ -76,29 +76,26 @@ function initRuler(canvas, chrStartBP, chrEndBP, renderedExtentBP) {
 }
 
 function draw(ctx, renderedExtentBP, dpr) {
-
-    clearCanvas(ctx, dpr)
-
-    const unit = getUnit(renderedExtentBP.endBP - renderedExtentBP.startBP)
-
-    const majorTickSpacing = unit.value;
-    const minorTickSpacing = majorTickSpacing / 10;
-
-    const firstTickBP = Math.floor(renderedExtentBP.startBP / minorTickSpacing) * minorTickSpacing;
-    const lastTickBP = Math.ceil(renderedExtentBP.endBP / minorTickSpacing) * minorTickSpacing;
+    clearCanvas(ctx, dpr);
 
     ctx.strokeStyle = "#333";
     ctx.fillStyle = "#333";
     ctx.font = `${12 * dpr}px Arial`;
     ctx.textAlign = "center";
 
-    const canvas = ctx.canvas
+    const canvas = ctx.canvas;
+    const spanBP = renderedExtentBP.endBP - renderedExtentBP.startBP;
+    const bpp = bpPerPixel(canvas.clientWidth, spanBP);
 
-    const bpp = bpPerPixel(canvas.clientWidth, renderedExtentBP.endBP - renderedExtentBP.startBP)
+    const unit = getUnit(spanBP);
+    const majorTickSpacing = getTickSpacing(spanBP, canvas.clientWidth); // Use dynamic spacing
+    const minorTickSpacing = majorTickSpacing / 10;
+
+    const firstTickBP = Math.floor(renderedExtentBP.startBP / minorTickSpacing) * minorTickSpacing;
+    const lastTickBP = Math.ceil(renderedExtentBP.endBP / minorTickSpacing) * minorTickSpacing;
 
     for (let bp = firstTickBP; bp <= lastTickBP; bp += minorTickSpacing) {
-
-        const x = (bp - renderedExtentBP.startBP) / bpp
+        const x = (bp - renderedExtentBP.startBP) / bpp;
 
         if (x < 0 || x > canvas.clientWidth) continue;
 
@@ -141,16 +138,43 @@ function resizeScaleCanvas(ctx, dpr) {
     ctx.scale(dpr, dpr);
 }
 
-function getUnit(span) {
+function getUnit(spanBP) {
 
-    const units = [
-        { name: "bp", value: 1 },
-        { name: "kb", value: 1000 },
-        { name: "mb", value: 1000000 },
-    ];
+    if (spanBP >= 5e6) return { name: "mb", value: 1000000 }
 
-    if (span >= 1_000_000) return units[2]; // mb
-    if (span >= 1_000) return units[1]; // kb
+    if (spanBP >= 5e3) return { name: "kb", value: 1000 }
+
+    return { name: "mb", value: 1000000 }
+}
+
+function getTickSpacing(spanBP, canvasWidth) {
+
+    const idealTickCount = 10; // Aim for 10 major ticks across the canvas
+
+    const bpp = spanBP / canvasWidth; // Base pairs per pixel
+    const rawSpacing = bpp * canvasWidth / idealTickCount;
+
+    // Round rawSpacing to a "nice" number (1, 2, 5, 10, etc.)
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacing)));
+
+    const niceSpacing = Math.ceil(rawSpacing / magnitude) * magnitude;
+
+    return niceSpacing; // Return spacing in base pairs
+}
+
+function __getUnit(spanBP) {
+
+    const units =
+        [
+            { name: "bp", value: 1 },
+            { name: "kb", value: 1000 },
+            { name: "mb", value: 1000000 },
+        ];
+
+    if (spanBP >= 1e6) return units[2]; // mb
+
+    if (spanBP >= 1e3) return units[1]; // kb
+
     return units[0]; // bp;
 }
 
