@@ -1,10 +1,10 @@
 function initRuler(canvas, chrStartBP, chrEndBP, startBP, endBP) {
     const ctx = canvas.getContext("2d");
 
-    // Handle high-DPI rendering
+    // High-DPI Rendering
     const dpr = window.devicePixelRatio || 1;
 
-    // Chromosome range
+    // Chromosome Length
     const totalBases = chrEndBP - chrStartBP;
 
     // Current visible range (sub-range)
@@ -15,51 +15,17 @@ function initRuler(canvas, chrStartBP, chrEndBP, startBP, endBP) {
     let isDragging = false;
     let startX = 0;
 
-    // Genomic units
-    const units = [
-        { name: "bp", value: 1 },
-        { name: "kb", value: 1000 },
-        { name: "mb", value: 1000000 },
-    ];
-
-    function resizeCanvas() {
-        const cssWidth = canvas.clientWidth;
-        const cssHeight = canvas.clientHeight;
-
-        // Adjust canvas dimensions for high-DPI
-        canvas.width = cssWidth * dpr;
-        canvas.height = cssHeight * dpr;
-
-        // Scale the context to handle high-DPI
-        ctx.scale(dpr, dpr);
-
-        // Redraw the ruler to fit the new size
-        draw();
-    }
-
-    function calculatePixelsPerBase() {
-        return canvas.clientWidth / (visibleEnd - visibleStart);
-    }
-
-    function getUnit() {
-        const span = visibleEnd - visibleStart;
-        if (span >= 1_000_000) return units[2]; // mb
-        if (span >= 1_000) return units[1]; // kb
-        return units[0]; // bp;
-    }
-
     function draw() {
-        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
-        const pixelsPerBase = calculatePixelsPerBase();
-        const currentUnit = getUnit();
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        ctx.fillStyle = "#f5f5f5";
+        ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+        const currentUnit = getUnit(visibleEnd - visibleStart)
         const unitScale = currentUnit.value;
 
         const majorTickSpacing = unitScale;
         const minorTickSpacing = majorTickSpacing / 10;
-
-        ctx.fillStyle = "#f5f5f5";
-        ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
         ctx.strokeStyle = "#333";
         ctx.fillStyle = "#333";
@@ -69,8 +35,10 @@ function initRuler(canvas, chrStartBP, chrEndBP, startBP, endBP) {
         const firstTick = Math.floor(visibleStart / minorTickSpacing) * minorTickSpacing;
         const lastTick = Math.ceil(visibleEnd / minorTickSpacing) * minorTickSpacing;
 
+        const bpp = bpPerPixel(canvas, visibleEnd - visibleStart)
         for (let base = firstTick; base <= lastTick; base += minorTickSpacing) {
-            const x = (base - visibleStart) * pixelsPerBase;
+
+            const x = (base - visibleStart) / bpp
 
             if (x < 0 || x > canvas.clientWidth) continue;
 
@@ -112,15 +80,16 @@ function initRuler(canvas, chrStartBP, chrEndBP, startBP, endBP) {
     });
 
     canvas.addEventListener("mousemove", (e) => {
+
         if (isDragging) {
+
             const deltaX = e.offsetX - startX;
             startX = e.offsetX;
 
-            const pixelsPerBase = calculatePixelsPerBase();
-            const baseDelta = deltaX / pixelsPerBase;
+            const deltaBP = bpPerPixel(canvas, visibleEnd - visibleStart) * deltaX
 
-            visibleStart = Math.max(chrStartBP, visibleStart - baseDelta);
-            visibleEnd = Math.min(chrEndBP, visibleEnd - baseDelta);
+            visibleStart = Math.max(chrStartBP, visibleStart - deltaBP);
+            visibleEnd = Math.min(chrEndBP, visibleEnd - deltaBP);
 
             const span = visibleEnd - visibleStart;
             if (visibleStart < chrStartBP) {
@@ -146,9 +115,42 @@ function initRuler(canvas, chrStartBP, chrEndBP, startBP, endBP) {
         canvas.style.cursor = "grab";
     });
 
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", event => {
+        resizeScaleCanvas(ctx, dpr)
+        draw()
+    });
 
-    resizeCanvas();
+    resizeScaleCanvas(ctx, dpr)
+    draw()
+}
+
+function bpPerPixel(canvas, spanBP) {
+    return spanBP / canvas.clientWidth
+}
+
+function resizeScaleCanvas(ctx, dpr) {
+    const cssWidth = ctx.canvas.clientWidth;
+    const cssHeight = ctx.canvas.clientHeight;
+
+    // Adjust canvas dimensions for high-DPI
+    ctx.canvas.width = cssWidth * dpr;
+    ctx.canvas.height = cssHeight * dpr;
+
+    // Scale the context to handle high-DPI
+    ctx.scale(dpr, dpr);
+}
+
+function getUnit(span) {
+
+    const units = [
+        { name: "bp", value: 1 },
+        { name: "kb", value: 1000 },
+        { name: "mb", value: 1000000 },
+    ];
+
+    if (span >= 1_000_000) return units[2]; // mb
+    if (span >= 1_000) return units[1]; // kb
+    return units[0]; // bp;
 }
 
 export { initRuler }
