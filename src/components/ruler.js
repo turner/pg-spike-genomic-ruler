@@ -1,3 +1,5 @@
+import {prettyPrint} from "../utils.js"
+
 function initRuler(canvas, chrStartBP, chrEndBP, renderedExtentBP) {
 
     const ctx = canvas.getContext("2d");
@@ -93,6 +95,8 @@ function draw(ctx, renderedExtentBP, dpr) {
 
     const firstTickBP = Math.floor(renderedExtentBP.startBP / minorTickSpacing) * minorTickSpacing;
     const lastTickBP = Math.ceil(renderedExtentBP.endBP / minorTickSpacing) * minorTickSpacing;
+
+    // console.log(`locus: chrXX:${ prettyPrint(renderedExtentBP.startBP) }-${ prettyPrint(renderedExtentBP.endBP) }`);
 
     for (let bp = firstTickBP; bp <= lastTickBP; bp += minorTickSpacing) {
         const x = (bp - renderedExtentBP.startBP) / bpp;
