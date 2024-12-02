@@ -111,7 +111,7 @@ function draw(ctx, renderedExtentBP, dpr) {
         ctx.stroke();
 
         if (isMajor) {
-            const label = `${Math.floor(bp / unit.value)} ${unit.name}`;
+            const label = `${ prettyPrint(Math.floor(bp / unit.value)) } ${unit.name}`;
             ctx.fillText(label, x, 40);
         }
     }
@@ -143,6 +143,18 @@ function resizeScaleCanvas(ctx, dpr) {
 }
 
 function getUnit(spanBP) {
+    const units = [
+        { name: "bp", value: 1 },
+        { name: "kb", value: 1000 },
+        { name: "mb", value: 1000000 },
+    ];
+
+    if (spanBP >= 5e6) return units[2]; // mb, transitions to mb only if spanBP >= 5 million
+    if (spanBP >= 5e3) return units[1]; // kb, transitions to kb if spanBP >= 5 thousand
+    return units[0]; // bp
+}
+
+function __getUnit(spanBP) {
 
     if (spanBP >= 5e6) return { name: "mb", value: 1000000 }
 
@@ -164,22 +176,6 @@ function getTickSpacing(spanBP, canvasWidth) {
     const niceSpacing = Math.ceil(rawSpacing / magnitude) * magnitude;
 
     return niceSpacing; // Return spacing in base pairs
-}
-
-function __getUnit(spanBP) {
-
-    const units =
-        [
-            { name: "bp", value: 1 },
-            { name: "kb", value: 1000 },
-            { name: "mb", value: 1000000 },
-        ];
-
-    if (spanBP >= 1e6) return units[2]; // mb
-
-    if (spanBP >= 1e3) return units[1]; // kb
-
-    return units[0]; // bp;
 }
 
 export { initRuler }

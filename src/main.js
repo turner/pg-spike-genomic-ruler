@@ -1,5 +1,5 @@
 import './style.scss';
-import { initRuler } from './components/ruler';
+import { initRuler } from './components/ruler.js';
 
 document.addEventListener("DOMContentLoaded", (event) => {
 
