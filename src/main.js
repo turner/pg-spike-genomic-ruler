@@ -4,7 +4,12 @@ import { initRuler } from './components/ruler';
 document.addEventListener("DOMContentLoaded", (event) => {
 
     const canvas = document.getElementById("ruler-canvas");
-    initRuler(canvas, 0, 133324548, 30000000, 40000000);
+    const renderedExtent =
+        {
+            startBP: 30000000,
+            endBP: 40000000
+        }
+    initRuler(canvas, 0, 133324548, renderedExtent);
 
 
 })
