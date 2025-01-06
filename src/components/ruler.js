@@ -154,15 +154,6 @@ function getUnit(spanBP) {
     return units[0]; // bp
 }
 
-function __getUnit(spanBP) {
-
-    if (spanBP >= 5e6) return { name: "mb", value: 1000000 }
-
-    if (spanBP >= 5e3) return { name: "kb", value: 1000 }
-
-    return { name: "mb", value: 1000000 }
-}
-
 function getTickSpacing(spanBP, canvasWidth) {
 
     const idealTickCount = 10; // Aim for 10 major ticks across the canvas
