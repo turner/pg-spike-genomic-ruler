@@ -1,172 +1,227 @@
 import {prettyPrint} from "../utils.js"
+import {getChromosomeLength} from "./genomicUtils.js"
 
-function initRuler(canvas, chrStartBP, chrEndBP, renderedExtentBP) {
+let lastExecutionTime = 0
+const delay = 16 // 60 fps
+// const delay = 64
 
-    const ctx = canvas.getContext("2d");
+class Ruler {
 
-    // High-DPI Rendering
-    const dpr = window.devicePixelRatio || 1;
+    constructor(canvas, chr, genomicState) {
 
-    // Zoom and panning state
-    let isDragging = false;
-    let startX = 0;
+        this.canvas = canvas;
+        this.ctx = canvas.getContext("2d");
+        this.dpr = window.devicePixelRatio || 1;
 
-    canvas.addEventListener("wheel", (e) => {
+        // Initial chromosome and genomic state
+        const chrLength = getChromosomeLength(chr)
+        this.chrStartBP = 0
+        this.chrEndBP = chrLength
+
+        this.genomicState = { ...genomicState }; // Clone to avoid side-effects
+
+        this.isDragging = false;
+        this.startX = 0;
+
+        this.init();
+    }
+
+    init() {
+        // Set up event listeners
+        this.canvas.addEventListener("wheel", this.handleZoom.bind(this));
+        this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
+        this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
+        this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
+        this.canvas.addEventListener("mouseleave", this.handleMouseUp.bind(this));
+        window.addEventListener("resize", this.handleResize.bind(this));
+
+        // Initial render
+        this.resizeCanvas();
+        this.draw();
+    }
+
+    handleZoom(e) {
         e.preventDefault();
 
-        // const zoomFactor = 0.1;
         const zoomFactor = 0.008;
         const zoomDelta = e.deltaY > 0 ? 1 + zoomFactor : 1 - zoomFactor;
 
-        const zoomCenter = renderedExtentBP.startBP + (e.offsetX / canvas.clientWidth) * (renderedExtentBP.endBP - renderedExtentBP.startBP);
+        const zoomCenter =
+            this.genomicState.startBP +
+            (e.offsetX / this.canvas.clientWidth) *
+            (this.genomicState.endBP - this.genomicState.startBP);
 
-        renderedExtentBP.startBP = Math.max(chrStartBP, zoomCenter - (zoomCenter - renderedExtentBP.startBP) * zoomDelta);
-        renderedExtentBP.endBP = Math.min(chrEndBP, zoomCenter + (renderedExtentBP.endBP - zoomCenter) * zoomDelta);
+        this.genomicState.startBP = Math.max(
+            this.chrStartBP,
+            zoomCenter - (zoomCenter - this.genomicState.startBP) * zoomDelta
+        );
+        this.genomicState.endBP = Math.min(
+            this.chrEndBP,
+            zoomCenter + (this.genomicState.endBP - zoomCenter) * zoomDelta
+        );
 
-        draw(ctx, renderedExtentBP, dpr)
-    })
+        this.draw();
+    }
 
-    canvas.addEventListener("mousedown", (e) => {
-        isDragging = true;
-        startX = e.offsetX;
-        canvas.style.cursor = "grabbing";
-    })
+    handleMouseDown(e) {
+        this.isDragging = true;
+        this.startX = e.offsetX;
+        this.canvas.style.cursor = "grabbing";
+    }
 
-    canvas.addEventListener("mousemove", (e) => {
+    handleMouseMove(e) {
+        if (!this.isDragging) return;
 
-        if (isDragging) {
+        const deltaX = e.offsetX - this.startX;
+        this.startX = e.offsetX;
 
-            const deltaX = e.offsetX - startX;
-            startX = e.offsetX;
+        const deltaBP = this.bpPerPixel() * deltaX;
 
-            const deltaBP = bpPerPixel(canvas.clientWidth, renderedExtentBP.endBP - renderedExtentBP.startBP) * deltaX
+        this.genomicState.startBP = Math.max(
+            this.chrStartBP,
+            this.genomicState.startBP - deltaBP
+        );
+        this.genomicState.endBP = Math.min(
+            this.chrEndBP,
+            this.genomicState.endBP - deltaBP
+        );
 
-            renderedExtentBP.startBP = Math.max(chrStartBP, renderedExtentBP.startBP - deltaBP);
-            renderedExtentBP.endBP = Math.min(chrEndBP, renderedExtentBP.endBP - deltaBP);
+        const span = this.genomicState.endBP - this.genomicState.startBP;
 
-            const span = renderedExtentBP.endBP - renderedExtentBP.startBP;
-            if (renderedExtentBP.startBP < chrStartBP) {
-                renderedExtentBP.startBP = chrStartBP;
-                renderedExtentBP.endBP = chrStartBP + span;
-            }
-            if (renderedExtentBP.endBP > chrEndBP) {
-                renderedExtentBP.endBP = chrEndBP;
-                renderedExtentBP.startBP = chrEndBP - span;
-            }
-
-            draw(ctx, renderedExtentBP, dpr)
+        if (this.genomicState.startBP < this.chrStartBP) {
+            this.genomicState.startBP = this.chrStartBP;
+            this.genomicState.endBP = this.chrStartBP + span;
         }
-    })
 
-    canvas.addEventListener("mouseup", () => {
-        isDragging = false;
-        canvas.style.cursor = "grab";
-    })
-
-    canvas.addEventListener("mouseleave", () => {
-        isDragging = false;
-        canvas.style.cursor = "grab";
-    })
-
-    window.addEventListener("resize", event => {
-        resizeScaleCanvas(ctx, dpr)
-        draw(ctx, renderedExtentBP, dpr)
-    })
-
-    resizeScaleCanvas(ctx, dpr)
-    draw(ctx, renderedExtentBP, dpr)
-}
-
-function draw(ctx, renderedExtentBP, dpr) {
-    clearCanvas(ctx, dpr);
-
-    ctx.strokeStyle = "#333";
-    ctx.fillStyle = "#333";
-    ctx.font = `${12 * dpr}px Arial`;
-    ctx.textAlign = "center";
-
-    const canvas = ctx.canvas;
-    const spanBP = renderedExtentBP.endBP - renderedExtentBP.startBP;
-    const bpp = bpPerPixel(canvas.clientWidth, spanBP);
-
-    const unit = getUnit(spanBP);
-    const majorTickSpacing = getTickSpacing(spanBP, canvas.clientWidth); // Use dynamic spacing
-    const minorTickSpacing = majorTickSpacing / 10;
-
-    const firstTickBP = Math.floor(renderedExtentBP.startBP / minorTickSpacing) * minorTickSpacing;
-    const lastTickBP = Math.ceil(renderedExtentBP.endBP / minorTickSpacing) * minorTickSpacing;
-
-    // console.log(`locus: chrXX:${ prettyPrint(renderedExtentBP.startBP) }-${ prettyPrint(renderedExtentBP.endBP) }`);
-
-    for (let bp = firstTickBP; bp <= lastTickBP; bp += minorTickSpacing) {
-        const x = (bp - renderedExtentBP.startBP) / bpp;
-
-        if (x < 0 || x > canvas.clientWidth) continue;
-
-        const isMajor = bp % majorTickSpacing === 0;
-
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, isMajor ? 20 : 10);
-        ctx.stroke();
-
-        if (isMajor) {
-            const label = `${ prettyPrint(Math.floor(bp / unit.value)) } ${unit.name}`;
-            ctx.fillText(label, x, 40);
+        if (this.genomicState.endBP > this.chrEndBP) {
+            this.genomicState.endBP = this.chrEndBP;
+            this.genomicState.startBP = this.chrEndBP - span;
         }
+
+        this.draw();
+    }
+
+    handleMouseUp() {
+        this.isDragging = false;
+        this.canvas.style.cursor = "grab";
+    }
+
+    handleResize() {
+        this.resizeCanvas();
+        this.draw();
+    }
+
+    resizeCanvas() {
+        const cssWidth = this.canvas.clientWidth;
+        const cssHeight = this.canvas.clientHeight;
+
+        // Adjust canvas dimensions for high-DPI
+        this.canvas.width = cssWidth * this.dpr;
+        this.canvas.height = cssHeight * this.dpr;
+
+        // Scale the context to handle high-DPI
+        this.ctx.scale(this.dpr, this.dpr);
+    }
+
+    bpPerPixel() {
+        return (
+            (this.genomicState.endBP - this.genomicState.startBP) /
+            this.canvas.clientWidth
+        );
+    }
+
+    draw() {
+
+        const now = performance.now()
+        if (now - lastExecutionTime < delay) {
+            return
+        }
+
+        this.clearCanvas();
+
+        const spanBP = this.genomicState.endBP - this.genomicState.startBP;
+        const bpp = this.bpPerPixel();
+        const unit = Ruler.getUnit(spanBP);
+        const majorTickSpacing = Ruler.getTickSpacing(spanBP, this.canvas.clientWidth);
+        const minorTickSpacing = majorTickSpacing / 10;
+
+        const firstTickBP = Math.floor(this.genomicState.startBP / minorTickSpacing) * minorTickSpacing;
+        const lastTickBP = Math.ceil(this.genomicState.endBP / minorTickSpacing) * minorTickSpacing;
+
+        this.ctx.strokeStyle = "#333";
+        this.ctx.fillStyle = "#333";
+        this.ctx.font = `${12 * this.dpr}px Arial`;
+        this.ctx.textAlign = "center";
+
+        for (let bp = firstTickBP; bp <= lastTickBP; bp += minorTickSpacing) {
+            const x = (bp - this.genomicState.startBP) / bpp;
+
+            if (x < 0 || x > this.canvas.clientWidth) continue;
+
+            const isMajor = bp % majorTickSpacing === 0;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, isMajor ? 20 : 10);
+            this.ctx.stroke();
+
+            if (isMajor) {
+                const label = `${Ruler.prettyPrint(
+                    Math.floor(bp / unit.value)
+                )} ${unit.name}`;
+                this.ctx.fillText(label, x, 40);
+            }
+        }
+    }
+
+    clearCanvas() {
+        this.ctx.clearRect(
+            0,
+            0,
+            this.canvas.width / this.dpr,
+            this.canvas.height / this.dpr
+        );
+        this.ctx.fillStyle = "#f5f5f5";
+        this.ctx.fillRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+    }
+
+    // Method to update chromosome and genomic state
+    setChromosome(chr, genomicState) {
+        this.chrStartBP = 0
+        this.chrEndBP = getChromosomeLength(chr)
+        this.genomicState = { ...genomicState }
+
+        console.log(`draw ruler for ${ chr }`)
+        this.draw()
+    }
+
+    static getUnit(spanBP) {
+        const units = [
+            { name: "bp", value: 1 },
+            { name: "kb", value: 1000 },
+            { name: "mb", value: 1000000 },
+        ];
+
+        if (spanBP >= 5e6) return units[2]; // mb
+        if (spanBP >= 5e3) return units[1]; // kb
+        return units[0]; // bp
+    }
+
+    static getTickSpacing(spanBP, canvasWidth) {
+        const idealTickCount = 10;
+        const bpp = spanBP / canvasWidth;
+
+        const rawSpacing = bpp * canvasWidth / idealTickCount;
+        const rawSpacingRound = Math.round(rawSpacing)
+
+        const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacingRound)))
+        return Math.ceil(rawSpacingRound / magnitude) * magnitude;
+
+    }
+
+    static prettyPrint(value) {
+        return value.toLocaleString(); // Adds commas for readability
     }
 }
 
-function clearCanvas(ctx, dpr) {
-
-    const canvas = ctx.canvas
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-    ctx.fillStyle = "#f5f5f5";
-    ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-
-}
-
-function bpPerPixel(canvasWidth, spanBP) {
-    return spanBP / canvasWidth
-}
-
-function resizeScaleCanvas(ctx, dpr) {
-    const cssWidth = ctx.canvas.clientWidth;
-    const cssHeight = ctx.canvas.clientHeight;
-
-    // Adjust canvas dimensions for high-DPI
-    ctx.canvas.width = cssWidth * dpr;
-    ctx.canvas.height = cssHeight * dpr;
-
-    // Scale the context to handle high-DPI
-    ctx.scale(dpr, dpr);
-}
-
-function getUnit(spanBP) {
-    const units = [
-        { name: "bp", value: 1 },
-        { name: "kb", value: 1000 },
-        { name: "mb", value: 1000000 },
-    ];
-
-    if (spanBP >= 5e6) return units[2]; // mb, transitions to mb only if spanBP >= 5 million
-    if (spanBP >= 5e3) return units[1]; // kb, transitions to kb if spanBP >= 5 thousand
-    return units[0]; // bp
-}
-
-function getTickSpacing(spanBP, canvasWidth) {
-
-    const idealTickCount = 10; // Aim for 10 major ticks across the canvas
-
-    const bpp = spanBP / canvasWidth; // Base pairs per pixel
-    const rawSpacing = bpp * canvasWidth / idealTickCount;
-
-    // Round rawSpacing to a "nice" number (1, 2, 5, 10, etc.)
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacing)));
-
-    const niceSpacing = Math.ceil(rawSpacing / magnitude) * magnitude;
-
-    return niceSpacing; // Return spacing in base pairs
-}
-
-export { initRuler }
+export default Ruler
