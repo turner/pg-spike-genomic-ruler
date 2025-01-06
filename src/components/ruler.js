@@ -1,4 +1,5 @@
 import {prettyPrint} from "../utils.js"
+import {getChromosomeLength} from "./genomicUtils.js"
 
 let lastExecutionTime = 0
 const delay = 16 // 60 fps
@@ -6,14 +7,17 @@ const delay = 16 // 60 fps
 
 class Ruler {
 
-    constructor(canvas, chrStartBP, chrEndBP, genomicState) {
+    constructor(canvas, chr, genomicState) {
+
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
         this.dpr = window.devicePixelRatio || 1;
 
         // Initial chromosome and genomic state
-        this.chrStartBP = chrStartBP;
-        this.chrEndBP = chrEndBP;
+        const chrLength = getChromosomeLength(chr)
+        this.chrStartBP = 0
+        this.chrEndBP = chrLength
+
         this.genomicState = { ...genomicState }; // Clone to avoid side-effects
 
         this.isDragging = false;
@@ -141,12 +145,8 @@ class Ruler {
         const majorTickSpacing = Ruler.getTickSpacing(spanBP, this.canvas.clientWidth);
         const minorTickSpacing = majorTickSpacing / 10;
 
-        const firstTickBP =
-            Math.floor(this.genomicState.startBP / minorTickSpacing) *
-            minorTickSpacing;
-        const lastTickBP =
-            Math.ceil(this.genomicState.endBP / minorTickSpacing) *
-            minorTickSpacing;
+        const firstTickBP = Math.floor(this.genomicState.startBP / minorTickSpacing) * minorTickSpacing;
+        const lastTickBP = Math.ceil(this.genomicState.endBP / minorTickSpacing) * minorTickSpacing;
 
         this.ctx.strokeStyle = "#333";
         this.ctx.fillStyle = "#333";
@@ -186,11 +186,13 @@ class Ruler {
     }
 
     // Method to update chromosome and genomic state
-    setChromosome(chrStartBP, chrEndBP, genomicState) {
-        this.chrStartBP = chrStartBP;
-        this.chrEndBP = chrEndBP;
-        this.genomicState = { ...genomicState }; // Clone for safety
-        this.draw();
+    setChromosome(chr, genomicState) {
+        this.chrStartBP = 0
+        this.chrEndBP = getChromosomeLength(chr)
+        this.genomicState = { ...genomicState }
+
+        console.log(`draw ruler for ${ chr }`)
+        this.draw()
     }
 
     static getUnit(spanBP) {
@@ -211,7 +213,6 @@ class Ruler {
 
         const rawSpacing = bpp * canvasWidth / idealTickCount;
         const rawSpacingRound = Math.round(rawSpacing)
-        // console.log(`rawSpacing ${ rawSpacing } rawSpacingRound ${ rawSpacingRound }`)
 
         const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacingRound)))
         return Math.ceil(rawSpacingRound / magnitude) * magnitude;
