@@ -3,22 +3,18 @@ import {getChromosomeLength} from "./genomicUtils.js"
 
 let lastExecutionTime = 0
 const delay = 16 // 60 fps
-// const delay = 64
 
 class Ruler {
-
-    constructor(canvas, chr, genomicState) {
-
+    constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
         this.dpr = window.devicePixelRatio || 1;
 
-        // Initial chromosome and genomic state
-        const chrLength = getChromosomeLength(chr)
-        this.chrStartBP = 0
-        this.chrEndBP = chrLength
-
-        this.genomicState = { ...genomicState }; // Clone to avoid side-effects
+        // Initialize with null values
+        this.chr = null;
+        this.chrStartBP = 0;
+        this.chrEndBP = 0;
+        this.genomicState = null;
 
         this.isDragging = false;
         this.startX = 0;
@@ -38,6 +34,35 @@ class Ruler {
         // Initial render
         this.resizeCanvas();
         this.draw();
+    }
+
+    // New method to set genomic locus
+    setGenomicLocus(chr, startBP, endBP) {
+        this.chr = chr;
+        this.chrStartBP = 0;
+        this.chrEndBP = getChromosomeLength(chr);
+
+        // Validate and clamp the provided range
+        startBP = Math.max(this.chrStartBP, Math.min(startBP, this.chrEndBP));
+        endBP = Math.max(this.chrStartBP, Math.min(endBP, this.chrEndBP));
+
+        // Ensure minimum visible range (e.g., 100bp)
+        const minRange = 100;
+        if (endBP - startBP < minRange) {
+            const center = (startBP + endBP) / 2;
+            startBP = center - minRange / 2;
+            endBP = center + minRange / 2;
+        }
+
+        this.genomicState = {
+            startBP: startBP,
+            endBP: endBP
+        };
+
+        this.draw();
+
+        // Dispatch event for parent application
+        this.dispatchLocusChangedEvent();
     }
 
     handleZoom(e) {
@@ -61,6 +86,7 @@ class Ruler {
         );
 
         this.draw();
+        this.dispatchLocusChangedEvent();
     }
 
     handleMouseDown(e) {
@@ -99,6 +125,7 @@ class Ruler {
         }
 
         this.draw();
+        this.dispatchLocusChangedEvent();
     }
 
     handleMouseUp() {
@@ -131,6 +158,11 @@ class Ruler {
     }
 
     draw() {
+        // Only draw if we have valid genomic state
+        if (!this.genomicState) {
+            this.clearCanvas();
+            return;
+        }
 
         const now = performance.now()
         if (now - lastExecutionTime < delay) {
@@ -185,16 +217,6 @@ class Ruler {
         this.ctx.fillRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
     }
 
-    // Method to update chromosome and genomic state
-    setChromosome(chr, genomicState) {
-        this.chrStartBP = 0
-        this.chrEndBP = getChromosomeLength(chr)
-        this.genomicState = { ...genomicState }
-
-        console.log(`draw ruler for ${ chr }`)
-        this.draw()
-    }
-
     static getUnit(spanBP) {
         const units = [
             { name: "bp", value: 1 },
@@ -221,6 +243,20 @@ class Ruler {
 
     static prettyPrint(value) {
         return value.toLocaleString(); // Adds commas for readability
+    }
+
+    // Helper method to dispatch the genomicLocusChanged event
+    dispatchLocusChangedEvent() {
+        if (!this.genomicState || !this.chr) return;
+        
+        const event = new CustomEvent('genomicLocusChanged', {
+            detail: {
+                chr: this.chr,
+                startBP: this.genomicState.startBP,
+                endBP: this.genomicState.endBP
+            }
+        });
+        this.canvas.dispatchEvent(event);
     }
 }
 
