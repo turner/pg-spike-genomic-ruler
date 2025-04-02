@@ -44,3 +44,14 @@ button {
     background-color: #0056b3;
   }
 }
+
+/* Override Bootstrap container max-width */
+.container-fluid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Add padding only to the locus input container */
+#locus-input-container {
+  padding: 0 1rem;
+}
