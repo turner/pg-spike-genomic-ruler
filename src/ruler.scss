@@ -1,7 +1,14 @@
 /* Ruler styles */
-#ruler-canvas {
+.ruler {
+  /* Block styles */
+  position: relative;
   width: 100%;
-  height: 100%;
+}
+
+.ruler__canvas {
+  /* Element styles */
+  width: 100%;
+  height: 100px; /* Fixed height of 100 pixels */
   display: block;
   cursor: grab;
 } 
