@@ -12,15 +12,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     const genomicRuler = new Ruler(canvas);
 
     // Initialize locus input
-    const locusInput = new LocusInput(locusContainer, ({ chr, startBP, endBP }) => {
-        // If only chromosome is provided, show entire chromosome
-        if (!startBP || !endBP) {
-            const chrLength = getChromosomeLength(chr);
-            genomicRuler.setGenomicLocus(chr, 0, chrLength);
-        } else {
-            genomicRuler.setGenomicLocus(chr, startBP, endBP);
-        }
-    });
+    const locusInput = new LocusInput(locusContainer, genomicRuler);
 
     // Listen for genomic locus changes
     canvas.addEventListener('genomicLocusChanged', (event) => {

@@ -42,4 +42,8 @@ function getChromosomeLength(chromosomeName) {
     }
 }
 
-export { getRandomChromosomeName, getChromosomeLength }
+function prettyPrint(value) {
+    return value.toLocaleString(); // Adds commas for readability
+}
+
+export { getRandomChromosomeName, getChromosomeLength, prettyPrint }

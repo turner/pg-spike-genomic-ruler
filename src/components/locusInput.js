@@ -1,3 +1,5 @@
+import { template, ELEMENT_IDS } from './locusInput.template.js';
+
 // Regular expressions for parsing genomic loci
 const LOCUS_PATTERNS = {
     // Matches "chr5" or "5"
@@ -8,31 +10,19 @@ const LOCUS_PATTERNS = {
 };
 
 class LocusInput {
-    constructor(container, onLocusChange) {
+    constructor(container, genomicRuler) {
         this.container = container;
-        this.onLocusChange = onLocusChange;
+        this.genomicRuler = genomicRuler;
         this.render();
         this.setupEventListeners();
     }
 
     render() {
-        this.container.innerHTML = `
-            <div class="input-group mb-3">
-                <input type="text" 
-                       class="form-control" 
-                       id="locus-input"
-                       placeholder="Enter locus (e.g., chr5 or chr12:50,464,921-53,983,987)"
-                       aria-label="Genomic locus">
-                <button class="btn btn-outline-secondary" 
-                        type="button" 
-                        id="locus-go-button">Go</button>
-            </div>
-            <div class="invalid-feedback" id="locus-error"></div>
-        `;
+        this.container.innerHTML = template;
 
-        this.input = this.container.querySelector('#locus-input');
-        this.goButton = this.container.querySelector('#locus-go-button');
-        this.errorDiv = this.container.querySelector('#locus-error');
+        this.input = this.container.querySelector(`#${ELEMENT_IDS.INPUT}`);
+        this.goButton = this.container.querySelector(`#${ELEMENT_IDS.GO_BUTTON}`);
+        this.errorDiv = this.container.querySelector(`#${ELEMENT_IDS.ERROR}`);
     }
 
     setupEventListeners() {
@@ -50,6 +40,16 @@ class LocusInput {
         this.goButton.addEventListener('click', handleLocusUpdate);
     }
 
+    handleLocusChange({ chr, startBP, endBP }) {
+        // If only chromosome is provided, show entire chromosome
+        if (!startBP || !endBP) {
+            const chrLength = getChromosomeLength(chr);
+            this.genomicRuler.setGenomicLocus(chr, 0, chrLength);
+        } else {
+            this.genomicRuler.setGenomicLocus(chr, startBP, endBP);
+        }
+    }
+
     processLocusInput(value) {
         // Reset error state
         this.input.classList.remove('is-invalid');
@@ -64,7 +64,7 @@ class LocusInput {
         let match = value.match(LOCUS_PATTERNS.CHROMOSOME_ONLY);
         if (match) {
             const chr = this.formatChromosome(match[1]);
-            this.onLocusChange({ chr });
+            this.handleLocusChange({ chr });
             return;
         }
 
@@ -85,7 +85,7 @@ class LocusInput {
                 return;
             }
 
-            this.onLocusChange({ chr, startBP, endBP });
+            this.handleLocusChange({ chr, startBP, endBP });
             return;
         }
 

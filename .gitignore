@@ -44,3 +44,7 @@ build
 .cache
 .npm
 .eslintcache
+
+# Generated CSS files
+src/app.css
+src/app.css.map
