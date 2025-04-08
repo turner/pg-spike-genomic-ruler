@@ -1,4 +1,4 @@
-import './style.scss';
+import './app.scss';
 import Ruler from "./components/ruler.js"
 import LocusInput from "./components/locusInput.js"
 import { prettyPrint } from "./utils.js"
