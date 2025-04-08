@@ -1,4 +1,4 @@
-import {prettyPrint} from "../utils.js"
+import {prettyPrint} from "./genomicUtils.js"
 import {getChromosomeLength} from "./genomicUtils.js"
 
 let lastExecutionTime = 0
@@ -12,9 +12,7 @@ class Ruler {
 
         // Initialize with null values
         this.chr = null;
-        this.chrStartBP = 0;
-        this.chrEndBP = 0;
-        this.genomicState = null;
+        this.genomicExtent = null;
 
         this.isDragging = false;
         this.startX = 0;
@@ -39,12 +37,11 @@ class Ruler {
     // New method to set genomic locus
     setGenomicLocus(chr, startBP, endBP) {
         this.chr = chr;
-        this.chrStartBP = 0;
-        this.chrEndBP = getChromosomeLength(chr);
+        const { start: chrStart, end: chrEnd } = Ruler.getChromosomeBoundaries(chr);
 
         // Validate and clamp the provided range
-        startBP = Math.max(this.chrStartBP, Math.min(startBP, this.chrEndBP));
-        endBP = Math.max(this.chrStartBP, Math.min(endBP, this.chrEndBP));
+        startBP = Math.max(chrStart, Math.min(startBP, chrEnd));
+        endBP = Math.max(chrStart, Math.min(endBP, chrEnd));
 
         // Ensure minimum visible range (e.g., 100bp)
         const minRange = 100;
@@ -54,10 +51,7 @@ class Ruler {
             endBP = center + minRange / 2;
         }
 
-        this.genomicState = {
-            startBP: startBP,
-            endBP: endBP
-        };
+        this.genomicExtent = { startBP, endBP };
 
         this.draw();
 
@@ -65,24 +59,32 @@ class Ruler {
         this.dispatchLocusChangedEvent();
     }
 
+    static getChromosomeBoundaries(chr) {
+        return {
+            start: 0,
+            end: getChromosomeLength(chr)
+        };
+    }
+
     handleZoom(e) {
         e.preventDefault();
 
         const zoomFactor = 0.008;
         const zoomDelta = e.deltaY > 0 ? 1 + zoomFactor : 1 - zoomFactor;
+        const { start: chrStart, end: chrEnd } = Ruler.getChromosomeBoundaries(this.chr);
 
         const zoomCenter =
-            this.genomicState.startBP +
+            this.genomicExtent.startBP +
             (e.offsetX / this.canvas.clientWidth) *
-            (this.genomicState.endBP - this.genomicState.startBP);
+            (this.genomicExtent.endBP - this.genomicExtent.startBP);
 
-        this.genomicState.startBP = Math.max(
-            this.chrStartBP,
-            zoomCenter - (zoomCenter - this.genomicState.startBP) * zoomDelta
+        this.genomicExtent.startBP = Math.max(
+            chrStart,
+            zoomCenter - (zoomCenter - this.genomicExtent.startBP) * zoomDelta
         );
-        this.genomicState.endBP = Math.min(
-            this.chrEndBP,
-            zoomCenter + (this.genomicState.endBP - zoomCenter) * zoomDelta
+        this.genomicExtent.endBP = Math.min(
+            chrEnd,
+            zoomCenter + (this.genomicExtent.endBP - zoomCenter) * zoomDelta
         );
 
         this.draw();
@@ -102,26 +104,27 @@ class Ruler {
         this.startX = e.offsetX;
 
         const deltaBP = this.bpPerPixel() * deltaX;
+        const { start: chrStart, end: chrEnd } = Ruler.getChromosomeBoundaries(this.chr);
 
-        this.genomicState.startBP = Math.max(
-            this.chrStartBP,
-            this.genomicState.startBP - deltaBP
+        this.genomicExtent.startBP = Math.max(
+            chrStart,
+            this.genomicExtent.startBP - deltaBP
         );
-        this.genomicState.endBP = Math.min(
-            this.chrEndBP,
-            this.genomicState.endBP - deltaBP
+        this.genomicExtent.endBP = Math.min(
+            chrEnd,
+            this.genomicExtent.endBP - deltaBP
         );
 
-        const span = this.genomicState.endBP - this.genomicState.startBP;
+        const span = this.genomicExtent.endBP - this.genomicExtent.startBP;
 
-        if (this.genomicState.startBP < this.chrStartBP) {
-            this.genomicState.startBP = this.chrStartBP;
-            this.genomicState.endBP = this.chrStartBP + span;
+        if (this.genomicExtent.startBP < chrStart) {
+            this.genomicExtent.startBP = chrStart;
+            this.genomicExtent.endBP = chrStart + span;
         }
 
-        if (this.genomicState.endBP > this.chrEndBP) {
-            this.genomicState.endBP = this.chrEndBP;
-            this.genomicState.startBP = this.chrEndBP - span;
+        if (this.genomicExtent.endBP > chrEnd) {
+            this.genomicExtent.endBP = chrEnd;
+            this.genomicExtent.startBP = chrEnd - span;
         }
 
         this.draw();
@@ -152,14 +155,14 @@ class Ruler {
 
     bpPerPixel() {
         return (
-            (this.genomicState.endBP - this.genomicState.startBP) /
+            (this.genomicExtent.endBP - this.genomicExtent.startBP) /
             this.canvas.clientWidth
         );
     }
 
     draw() {
         // Only draw if we have valid genomic state
-        if (!this.genomicState) {
+        if (!this.genomicExtent) {
             this.clearCanvas();
             return;
         }
@@ -171,14 +174,14 @@ class Ruler {
 
         this.clearCanvas();
 
-        const spanBP = this.genomicState.endBP - this.genomicState.startBP;
+        const spanBP = this.genomicExtent.endBP - this.genomicExtent.startBP;
         const bpp = this.bpPerPixel();
         const unit = Ruler.getUnit(spanBP);
         const majorTickSpacing = Ruler.getTickSpacing(spanBP, this.canvas.clientWidth);
         const minorTickSpacing = majorTickSpacing / 10;
 
-        const firstTickBP = Math.floor(this.genomicState.startBP / minorTickSpacing) * minorTickSpacing;
-        const lastTickBP = Math.ceil(this.genomicState.endBP / minorTickSpacing) * minorTickSpacing;
+        const firstTickBP = Math.floor(this.genomicExtent.startBP / minorTickSpacing) * minorTickSpacing;
+        const lastTickBP = Math.ceil(this.genomicExtent.endBP / minorTickSpacing) * minorTickSpacing;
 
         this.ctx.strokeStyle = "#333";
         this.ctx.fillStyle = "#333";
@@ -186,7 +189,7 @@ class Ruler {
         this.ctx.textAlign = "center";
 
         for (let bp = firstTickBP; bp <= lastTickBP; bp += minorTickSpacing) {
-            const x = (bp - this.genomicState.startBP) / bpp;
+            const x = (bp - this.genomicExtent.startBP) / bpp;
 
             if (x < 0 || x > this.canvas.clientWidth) continue;
 
@@ -198,7 +201,7 @@ class Ruler {
             this.ctx.stroke();
 
             if (isMajor) {
-                const label = `${Ruler.prettyPrint(
+                const label = `${prettyPrint(
                     Math.floor(bp / unit.value)
                 )} ${unit.name}`;
                 this.ctx.fillText(label, x, 40);
@@ -207,12 +210,7 @@ class Ruler {
     }
 
     clearCanvas() {
-        this.ctx.clearRect(
-            0,
-            0,
-            this.canvas.width / this.dpr,
-            this.canvas.height / this.dpr
-        );
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillStyle = "#f5f5f5";
         this.ctx.fillRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
     }
@@ -238,22 +236,17 @@ class Ruler {
 
         const magnitude = Math.pow(10, Math.floor(Math.log10(rawSpacingRound)))
         return Math.ceil(rawSpacingRound / magnitude) * magnitude;
-
-    }
-
-    static prettyPrint(value) {
-        return value.toLocaleString(); // Adds commas for readability
     }
 
     // Helper method to dispatch the genomicLocusChanged event
     dispatchLocusChangedEvent() {
-        if (!this.genomicState || !this.chr) return;
+        if (!this.genomicExtent || !this.chr) return;
         
         const event = new CustomEvent('genomicLocusChanged', {
             detail: {
                 chr: this.chr,
-                startBP: this.genomicState.startBP,
-                endBP: this.genomicState.endBP
+                startBP: this.genomicExtent.startBP,
+                endBP: this.genomicExtent.endBP
             }
         });
         this.canvas.dispatchEvent(event);
