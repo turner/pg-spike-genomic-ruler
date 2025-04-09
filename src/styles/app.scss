@@ -1,5 +1,5 @@
-/* Import ruler styles */
-@use './ruler.scss' as ruler;
+@use 'components/locus-input';
+@use 'components/ruler';
 
 /* Global styles */
 body {
@@ -12,9 +12,4 @@ body {
 .container-fluid {
   padding-left: 0;
   padding-right: 0;
-}
-
-/* Add padding only to the locus input container */
-#locus-input-container {
-  padding: 0 1rem;
 } 
