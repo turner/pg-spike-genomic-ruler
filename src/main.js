@@ -1,4 +1,4 @@
-import './app.scss';
+import './styles/app.scss';
 import Ruler from "./components/ruler.js"
 import LocusInput from "./components/locusInput.js"
 
