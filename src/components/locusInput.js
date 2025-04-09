@@ -1,4 +1,5 @@
 import { template, ELEMENT_IDS } from './locusInput.template.js';
+import { prettyPrint } from '../utils.js';
 
 // Regular expressions for parsing genomic loci
 const LOCUS_PATTERNS = {
@@ -20,24 +21,31 @@ class LocusInput {
     render() {
         this.container.innerHTML = template;
 
-        this.input = this.container.querySelector(`#${ELEMENT_IDS.INPUT}`);
+        this.inputElement = this.container.querySelector(`#${ELEMENT_IDS.INPUT}`);
         this.goButton = this.container.querySelector(`#${ELEMENT_IDS.GO_BUTTON}`);
         this.errorDiv = this.container.querySelector(`#${ELEMENT_IDS.ERROR}`);
     }
 
     setupEventListeners() {
+        
         const handleLocusUpdate = () => {
-            const value = this.input.value.trim();
-            this.processLocusInput(value);
+            this.processLocusInput(this.inputElement.value.trim())
         };
 
-        this.input.addEventListener('keypress', (e) => {
+        this.inputElement.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 handleLocusUpdate();
             }
         });
 
         this.goButton.addEventListener('click', handleLocusUpdate);
+
+        // Update the locus input when the genomic locus changes    
+        this.genomicRuler.canvas.addEventListener('genomicLocusChanged', (event) => {
+            const { chr, startBP, endBP } = event.detail;
+            this.setValue(`${chr}:${prettyPrint(startBP)}-${prettyPrint(endBP)}`);
+            console.log(`Genomic locus changed: ${chr}:${prettyPrint(startBP)}-${prettyPrint(endBP)}`);
+        });
     }
 
     handleLocusChange({ chr, startBP, endBP }) {
@@ -52,7 +60,7 @@ class LocusInput {
 
     processLocusInput(value) {
         // Reset error state
-        this.input.classList.remove('is-invalid');
+        this.inputElement.classList.remove('is-invalid');
         this.errorDiv.style.display = 'none';
 
         if (!value) {
@@ -106,14 +114,14 @@ class LocusInput {
     }
 
     showError(message) {
-        this.input.classList.add('is-invalid');
+        this.inputElement.classList.add('is-invalid');
         this.errorDiv.textContent = message;
         this.errorDiv.style.display = 'block';
     }
 
     // Method to update the input value programmatically
-    setValue(locus) {
-        this.input.value = locus;
+    setValue(locusString) {
+        this.inputElement.value = locusString;
     }
 }
 

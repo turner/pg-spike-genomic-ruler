@@ -56,7 +56,7 @@ class Ruler {
         this.draw();
 
         // Dispatch event for parent application
-        this.dispatchLocusChangedEvent();
+        this.dispatchLocusChangedEvent(chr, this.genomicExtent);
     }
 
     static getChromosomeBoundaries(chr) {
@@ -88,7 +88,7 @@ class Ruler {
         );
 
         this.draw();
-        this.dispatchLocusChangedEvent();
+        this.dispatchLocusChangedEvent(this.chr, this.genomicExtent);
     }
 
     handleMouseDown(e) {
@@ -128,7 +128,7 @@ class Ruler {
         }
 
         this.draw();
-        this.dispatchLocusChangedEvent();
+        this.dispatchLocusChangedEvent(this.chr, this.genomicExtent);
     }
 
     handleMouseUp() {
@@ -239,17 +239,9 @@ class Ruler {
     }
 
     // Helper method to dispatch the genomicLocusChanged event
-    dispatchLocusChangedEvent() {
-        if (!this.genomicExtent || !this.chr) return;
-        
-        const event = new CustomEvent('genomicLocusChanged', {
-            detail: {
-                chr: this.chr,
-                startBP: this.genomicExtent.startBP,
-                endBP: this.genomicExtent.endBP
-            }
-        });
-        this.canvas.dispatchEvent(event);
+    dispatchLocusChangedEvent(chr, genomicExtent) {
+        const { startBP, endBP } = genomicExtent;
+        this.canvas.dispatchEvent(new CustomEvent('genomicLocusChanged', { detail: { chr, startBP, endBP } }));
     }
 }
 
