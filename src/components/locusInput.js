@@ -1,11 +1,12 @@
 import { template, ELEMENT_IDS } from './locusInput.template.js';
 import { prettyPrint } from '../utils.js';
+import {getChromosomeLength} from "./genomicUtils.js"
 
 // Regular expressions for parsing genomic loci
 const LOCUS_PATTERNS = {
     // Matches "chr5" or "5"
     CHROMOSOME_ONLY: /^(?:chr)?(\d{1,2}|[XY])$/i,
-    
+
     // Matches "chr12:50,464,921-53,983,987" or "12:50,464,921-53,983,987"
     REGION: /^(?:chr)?(\d{1,2}|[XY]):([0-9,]+)-([0-9,]+)$/i
 };
@@ -27,7 +28,7 @@ class LocusInput {
     }
 
     setupEventListeners() {
-        
+
         const handleLocusUpdate = () => {
             this.processLocusInput(this.inputElement.value.trim())
         };
@@ -40,11 +41,10 @@ class LocusInput {
 
         this.goButton.addEventListener('click', handleLocusUpdate);
 
-        // Update the locus input when the genomic locus changes    
+        // Update the locus input when the genomic locus changes
         this.genomicRuler.canvas.addEventListener('genomicLocusChanged', (event) => {
             const { chr, startBP, endBP } = event.detail;
-            this.setValue(`${chr}:${prettyPrint(startBP)}-${prettyPrint(endBP)}`);
-            console.log(`Genomic locus changed: ${chr}:${prettyPrint(startBP)}-${prettyPrint(endBP)}`);
+            this.setValue(chr, startBP, endBP);
         });
     }
 
@@ -120,8 +120,12 @@ class LocusInput {
     }
 
     // Method to update the input value programmatically
-    setValue(locusString) {
-        this.inputElement.value = locusString;
+    setValue(chr, startBP, endBP) {
+
+        // Add 1 to startBP. User input is 1-based, genomic ruler is 0-based
+        const str = `${chr}:${prettyPrint(1 + startBP)}-${prettyPrint(endBP)}`;
+        // console.log(`Genomic locus changed: ${str}`);
+        this.inputElement.value = str;
     }
 }
 

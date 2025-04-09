@@ -39,6 +39,12 @@ class Ruler {
         this.chr = chr;
         const { start: chrStart, end: chrEnd } = Ruler.getChromosomeBoundaries(chr);
 
+        // If either startBP or endBP is not provided, use the full chromosome length
+        if (startBP === undefined || endBP === undefined) {
+            startBP = chrStart;
+            endBP = chrEnd;
+        }
+
         // Validate and clamp the provided range
         startBP = Math.max(chrStart, Math.min(startBP, chrEnd));
         endBP = Math.max(chrStart, Math.min(endBP, chrEnd));
