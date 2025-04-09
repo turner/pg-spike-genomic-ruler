@@ -6,15 +6,17 @@ export const ELEMENT_IDS = {
 };
 
 export const template = `
-    <div class="input-group mb-3">
-        <input type="text" 
-               class="form-control" 
-               id="${ELEMENT_IDS.INPUT}"
-               placeholder="Enter locus (e.g., chr5 or chr12:50,464,921-53,983,987)"
-               aria-label="Genomic locus">
-        <button class="btn btn-outline-secondary" 
-                type="button" 
-                id="${ELEMENT_IDS.GO_BUTTON}">Go</button>
+    <div class="locus-input">
+        <div class="input-group mb-3">
+            <input type="text" 
+                   class="locus-input__control form-control" 
+                   id="${ELEMENT_IDS.INPUT}"
+                   placeholder="Enter locus (e.g., chr5 or chr12:50,464,921-53,983,987)"
+                   aria-label="Genomic locus">
+            <button class="locus-input__button btn btn-outline-secondary" 
+                    type="button" 
+                    id="${ELEMENT_IDS.GO_BUTTON}">Go</button>
+        </div>
+        <div class="invalid-feedback" id="${ELEMENT_IDS.ERROR}"></div>
     </div>
-    <div class="invalid-feedback" id="${ELEMENT_IDS.ERROR}"></div>
 `; 

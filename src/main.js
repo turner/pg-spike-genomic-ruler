@@ -9,5 +9,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     const locusInput = new LocusInput(document.querySelector('.locus-input'), genomicRuler);
 
-    genomicRuler.setGenomicLocus('chr7', 30000000, 40000000);
+    // genomicRuler.setGenomicLocus('chr7', 30000000, 40000000);
+    genomicRuler.setGenomicLocus('chr7');
 });
